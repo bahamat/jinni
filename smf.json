@@ -1,0 +1,10 @@
+{
+  "ident": "ircbot",
+  "label": "IRC Bot for #smartos and #joyent",
+  "user": "nobody",
+  "group": "nobody",
+  "timeout": 10,
+  "stop": {
+    "timeout": 120
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "jinni",
+  "version": "1.0.0",
+  "description": "IRC bot for #smartos",
+  "repository": "https://github.com/bahamat/jinni",
+  "main": "jinni.js",
+  "scripts": {
+    "test": "make check"
+  },
+  "author": "Brian Bennett <brian.bennett@joyent.com>",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "bunyan": "^1.8.1",
+    "irc-client": "0.0.2",
+    "smfgen": "^1.0.0"
+  }
+}
