@@ -1,7 +1,8 @@
 {
+  "server": "irc.freenode.net",
   "nickname": "jinni",
   "username": "jinni",
-  "realname": "jinni",
+  "realname": "https://github.com/bahamat/jinni",
   "channels": [
     "#smartos",
     "#manta",

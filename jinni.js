@@ -4,7 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var process = require('process');
 
-var Client = require('irc-client');
+var irc = require('irc');
 var https = require('https');
 var bunyan = require('bunyan');
 
@@ -12,94 +12,61 @@ var log = bunyan.createLogger({name: 'jinni'});
 var config = loadConfig();
 
 // The holdout object will keep track of when the last time an issue was
-// commented on, on a per-room basis. The keys of holdout will be used as
-// the list of rooms to join.
+// commented on, on a per-room basis.
 var holdout = {};
 config.channels.forEach(function (chan) {
     holdout[chan] = {};
 });
 var holdout_time = 180000; // ms
 
-// This is mostly boilerplate.
-// See https://github.com/deoxxa/irc-client
-/* jsl:ignore */
-var Greeter = function Greeter() { /* jsl:end */
-    Client.apply(this, arguments);
-
-    this.regexes_private = [];
-    this.regexes_public = [];
-
-    this.on('message:public', function (from, to, message) {
-        this.regexes_public.filter(function (regex) {
-            var matches;
-            /* jsl:ignore */
-            if (matches = regex[0].exec(message)) { /* jsl:end */
-                regex[1](from, to, message, matches);
-            }
-        }.bind(this));
-    }.bind(this));
-
-    // Commented out, because I'm not supporting private messages yet.
-    // this.on('message:private', function (from, to, message) {
-        // this.regexes_private.filter(function (regex) {
-            // var matches;
-            // if (matches = regex[0].exec(message)) {
-                // regex[1](from, to, message, matches);
-            // }
-        // }.bind(this));
-    // }.bind(this));
-
-    this.transfers = [];
-};
-
-Greeter.prototype = Object.create(Client.prototype, {properties:
-    {constructor: Greeter}});
-
-Greeter.prototype.match_private = function match_private(regex, cb) {
-    this.regexes_private.push([regex, cb]);
-};
-
-Greeter.prototype.match_public = function match_public(regex, cb) {
-    this.regexes_public.push([regex, cb]);
-};
-
-Greeter.prototype.match = function match(regex, cb) {
-    this.match_private(regex, cb);
-    this.match_public(regex, cb);
-};
-
-var greeter = new Greeter({
-    server: {host: 'irc.freenode.net', port: 6667},
-    nickname: config.nickname,
-    username: config.username,
-    realname: config.realname,
-    channels: config.channels
-});
-
-greeter.on('irc', function (message) {
-    log.info(message);
-});
-
-// This is the reply. Commented out because I don't need it.
-// greeter.match(/^(hey|hi|hello)/i, function (from, to, message, matches) {
-//     var target = to;
-//
-//     if (target.toLowerCase() === greeter.nickname.toLowerCase()) {
-//         target = from;
-//     }
-//
-//     greeter.say(target, 'no, ' + matches[1] + ' to YOU, ' + from.nick);
-// });
-
-// End boilerplate.
-
 /* jsl:ignore */
 /* JSSTYLED */
 var issue_re = new RegExp(/(https?:\/\/smartos.org\/bugview\/)?\b([A-Z]+-\d+)\b(.*)?/);
+var changelog_re = new RegExp('^' + config.nickname.toLowerCase()
+    + ':? changelog');
 /* jsl:end */
-greeter.match(issue_re, function checkIssue(from, to, message, matches) {
 
-    var target = to;
+log.info({server: config.server,
+    nickname: config.nickname,
+    realname: config.realname,
+    channels: config.channels }, "Connecting...");
+var client = new irc.Client(
+    config.server, config.nickname,
+    {
+        userName: config.username,
+        realName: config.realname,
+        channels: config.channels
+    }
+);
+log.info("Client initialized");
+
+client.addListener('error', function (e) {
+    log.error({error: e});
+});
+
+/* jsl:ignore */
+client.addListener('message', function (from, to, message) {
+    var matches;
+
+    if (matches = message.match(issue_re)) {
+        checkIssue(from, to, message, matches);
+        return (0);
+    }
+
+    if (matches = message.match(changelog_re)) {
+        getChangelog(from, to, message, matches);
+        return (0);
+    }
+    return (0);
+});
+/* jsl:end */
+
+client.addListener('motd', function (motd) {
+    log.info({motd: motd});
+});
+
+var checkIssue = function (from, to, message, matches) {
+
     var issue = matches[2];
     var i = holdout[to][issue] || {};
     var last_code  = i.code || 0;
@@ -125,10 +92,6 @@ greeter.match(issue_re, function checkIssue(from, to, message, matches) {
         return (0);
     }
 
-    if (target.toLowerCase() === greeter.nickname.toLowerCase()) {
-        target = from;
-    }
-
     log.info('Check URL https://smartos.org/bugview/' + issue);
     https.get('https://smartos.org/bugview/' + issue, function (res) {
         log.info({issue: issue, statusCode: res.statusCode});
@@ -137,11 +100,11 @@ greeter.match(issue_re, function checkIssue(from, to, message, matches) {
 
             switch (res.statusCode) {
             case 200:
-                greeter.say(target,
+                client.say(to,
                 'https://smartos.org/bugview/' + matches[2]);
                 break;
             case 403:
-                greeter.say(target, 'Sorry, '
+                client.say(to, 'Sorry, '
                 + issue + ' is not public.');
                 break;
             default:
@@ -159,22 +122,15 @@ greeter.match(issue_re, function checkIssue(from, to, message, matches) {
         log.error(e);
     });
     return (0);
-});
+};
 
-var changelog_re = new RegExp('^' + greeter.nickname.toLowerCase()
-    + ':? changelog');
-greeter.match(changelog_re, function (from, to, message, matches) {
-    var target = to;
+var getChangelog =  function (from, to, message, matches) {
     log.info({from: from, to: to, message: message,
         matches: matches});
-    if (target.toLowerCase() === greeter.nickname.toLowerCase()) {
-        target = from;
-    }
 
     /* JSSTYLED */
-    greeter.say(target, 'http://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html');
-
-});
+    client.say(to, 'http://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html');
+};
 
 /* jsl:ignore */
 function loadConfig() {

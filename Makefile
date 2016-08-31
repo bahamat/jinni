@@ -1,6 +1,5 @@
 install: smf.xml node_modules
 	true
-	svccfg import sfm.xml
 
 smf.xml: smf.json node_modules
 	json -f $< -e "this.exec=\"${PWD}/jinni.js\"" | ./node_modules/smfgen/smfgen > $@

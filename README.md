@@ -10,3 +10,10 @@ the following functions.
 
 If you'd like to add/change something, fee free to open an issue or pull
 request. Pull requests must pass `make check`.
+
+## Requirements
+
+The `irc` node module is built from source, so you'll need a compiler
+(`build-essential`) and the `icu` package.  In order to run `make check` you'll
+need [jsstyle](https://github.com/davepacheco/jsstyle) and
+[jsl](https://github.com/davepacheco/javascriptlint) in your path.
