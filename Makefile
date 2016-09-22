@@ -1,11 +1,15 @@
+.PHONY: all
+all: node_modules smf.xml
+
 install: smf.xml node_modules
-	true
+	svccfg import smf.xml
 
 smf.xml: smf.json node_modules
 	json -f $< -e "this.start.exec=\"${PWD}/jinni.js\"" | ./node_modules/smfgen/smfgen > $@
 
 node_modules: package.json
-	npm install
+	npm install --progress=false
+	@touch node_modules
 
 check: jinni.js
 	jsstyle -t 4 -o indent=4 $<
