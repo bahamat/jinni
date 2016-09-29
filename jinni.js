@@ -12,11 +12,12 @@ var log = bunyan.createLogger({name: 'jinni'});
 var config = loadConfig();
 
 // The holdout object will keep track of when the last time an issue was
-// commented on, on a per-room basis.
+// commented on, on a per-room basis, and to self.
 var holdout = {};
 config.channels.forEach(function (chan) {
     holdout[chan] = {};
 });
+holdout[config.nickname] = {};
 var holdout_time = 180000; // ms
 
 /* jsl:ignore */
@@ -50,27 +51,33 @@ client.addListener('error', function (e) {
 /* jsl:ignore */
 client.addListener('message', function (from, to, message) {
     var matches;
+    var reply_to = to;
+
+    // If sent as a private message, respond with a private message.
+    if (to == config.nickname) {
+        reply_to = from;
+    }
 
     if (matches = message.match(bugview_re)) {
-        log.info({from: from, to: to, message: message, matches: matches},
-            'Matched bugview issue');
-        checkIssue(from, to, message, matches);
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched bugview issue');
+        checkIssue(from, to, reply_to, message, matches);
         return (0);
     }
 
     if (matches = message.match(changelog_re)) {
-        log.info({from: from, to: to, message: message, matches: matches},
-            'Matched changelog');
-        getChangelog(from, to, message, matches);
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched changelog');
+        getChangelog(from, to, reply_to, message, matches);
         return (0);
     }
 
     if (matches = message.match(github_re)) {
-        log.info({from: from, to: to, message: message, matches: matches},
-            'Matched github issue');
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched github issue');
         var gh_user = matches[1] || 'joyent/';
-        getGhIssue(from, to, message, gh_user,  matches[2], matches[3],
-            matches[4]);
+        getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
+            matches[3], matches[4]);
         return (0);
     }
 
@@ -90,7 +97,7 @@ client.addListener('names', function (channel) {
     log.info({channel: channel}, 'Joined channel');
 });
 
-var checkIssue = function (from, to, message, matches) {
+var checkIssue = function (from, to, reply_to, message, matches) {
 
     var issue = matches[2];
     var i = holdout[to][issue] || {};
@@ -125,12 +132,11 @@ var checkIssue = function (from, to, message, matches) {
 
             switch (res.statusCode) {
             case 200:
-                client.say(to,
-                'https://smartos.org/bugview/' + matches[2]);
+                client.say(reply_to,
+                    'https://smartos.org/bugview/' + matches[2]);
                 break;
             case 403:
-                client.say(to, 'Sorry, '
-                + issue + ' is not public.');
+                client.say(reply_to, 'Sorry, ' + issue + ' is not public.');
                 break;
             default:
                 log.info({issue: issue, res: res}, 'No reply');
@@ -149,16 +155,16 @@ var checkIssue = function (from, to, message, matches) {
     return (0);
 };
 
-var getChangelog = function (from, to, message, matches) {
+var getChangelog = function (from, to, reply_to, message, matches) {
     log.info({from: from, to: to, message: message,
         matches: matches});
 
     /* JSSTYLED */
-    client.say(to, 'http://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html');
+    client.say(reply_to, 'http://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html');
 };
 
-var getGhIssue = function (from, to, message, gh_user, gh_repo, gh_issue,
-    addtl_text) {
+var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
+    gh_issue, addtl_text) {
 
     var gh_url = 'https://api.github.com/repos/' + gh_user + gh_repo
         + '/issues/' + gh_issue;
@@ -193,8 +199,8 @@ var getGhIssue = function (from, to, message, gh_user, gh_repo, gh_issue,
         if (res.statusCode !== last_code || now - last_time > holdout_time) {
             switch (res.statusCode) {
                 case 200:
-                    client.say(to, 'https://github.com/' + gh_user + gh_repo
-                        + '/issues/' + gh_issue);
+                    client.say(reply_to, 'https://github.com/' + gh_user
+                        + gh_repo + '/issues/' + gh_issue);
                     comment = 'Found issue';
                     break;
                 default:
