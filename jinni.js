@@ -123,7 +123,7 @@ var checkBugView = function (from, to, reply_to, message, matches) {
     // Look for any additional matches in the remainder of the text.
     if (addtl_match[1] !== null) {
         log.info({matches: addtl_match}, 'Looking up additional matches');
-        checkBugView(from, to, addtl_text, addtl_match);
+        checkBugView(from, to, reply_to, addtl_text, addtl_match);
     }
 
     // If this matches the bugview URL, skip it.
@@ -247,7 +247,7 @@ var getRfd = function (from, to, reply_to, message, matches) {
     // Look for any additional matches in the remainder of the text.
     if (addtl_match[1] !== null) {
         log.info({matches: addtl_match}, 'Looking up additional matches');
-        checkBugView(from, to, addtl_text, addtl_match);
+        getRfd(from, to, reply_to, addtl_text, addtl_match);
     }
 
     log.info('Check URL https://github.org/joyent/rfd/tree/master/rfd/' + rfd);
