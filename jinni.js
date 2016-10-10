@@ -61,7 +61,7 @@ client.addListener('message', function (from, to, message) {
     if (matches = message.match(bugview_re)) {
         log.info({from: from, to: to, reply_to: reply_to, message: message,
             matches: matches}, 'Matched bugview issue');
-        checkIssue(from, to, reply_to, message, matches);
+        checkBugView(from, to, reply_to, message, matches);
         return (0);
     }
 
@@ -97,7 +97,7 @@ client.addListener('names', function (channel) {
     log.info({channel: channel}, 'Joined channel');
 });
 
-var checkIssue = function (from, to, reply_to, message, matches) {
+var checkBugView = function (from, to, reply_to, message, matches) {
 
     var issue = matches[2];
     var i = holdout[to][issue] || {};
@@ -115,7 +115,7 @@ var checkIssue = function (from, to, reply_to, message, matches) {
     // Look for any additional matches in the remainder of the text.
     if (addtl_match[1] !== null) {
         log.info({matches: addtl_match}, 'Looking up additional matches');
-        checkIssue(from, to, addtl_text, addtl_match);
+        checkBugView(from, to, addtl_text, addtl_match);
     }
 
     // If this matches the bugview URL, skip it.
