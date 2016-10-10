@@ -25,6 +25,7 @@ var holdout_time = 180000; // ms
 var bugview_re = new RegExp(/(https?:\/\/smartos.org\/bugview\/)?\b([A-Z]+-\d+)\b(.*)?/);
 /* JSSTYLED */
 var github_re = new RegExp(/\b([0-z\-_]+\b\/)?\b([0-z\-_]+)\b#\b([0-9]+)\b(.*)/);
+var rfd_re = new RegExp(/[Rr][Ff][Dd][\s-]+?(0*\d+)\b(.*)?/);
 var changelog_re = new RegExp('^' + config.nickname.toLowerCase()
     + ':? changelog');
 /* jsl:end */
@@ -78,6 +79,13 @@ client.addListener('message', function (from, to, message) {
         var gh_user = matches[1] || 'joyent/';
         getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
             matches[3], matches[4]);
+        return (0);
+    }
+
+    if (matches = message.match(rfd_re)) {
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched RFD');
+        getRfd(from, to, reply_to, message, matches);
         return (0);
     }
 
@@ -222,6 +230,55 @@ var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
     return (0);
 };
 
+var getRfd = function (from, to, reply_to, message, matches) {
+
+    var rfd = matches[1].lpad(4, '0');
+    var i = holdout[to][rfd] || {};
+    var last_code  = i.code || 0;
+    var last_time  = i.time || 0;
+    var now = new Date();
+    var addtl_text = matches[2] || '';
+    var addtl_match = addtl_text.match(rfd_re) || [null, null, null];
+
+    log.info({from: from, to: to, message: message,
+        last_time: last_time, last_code: last_code,
+        matches: matches}, 'Need to look up RFD');
+
+    // Look for any additional matches in the remainder of the text.
+    if (addtl_match[1] !== null) {
+        log.info({matches: addtl_match}, 'Looking up additional matches');
+        checkBugView(from, to, addtl_text, addtl_match);
+    }
+
+    log.info('Check URL https://github.org/joyent/rfd/tree/master/rfd/' + rfd);
+    https.get('https://github.com/joyent/rfd/tree/master/rfd/' + rfd,
+        function (res) {
+            log.info({rfd: rfd, statusCode: res.statusCode});
+            if (res.statusCode !== last_code ||
+                    now - last_time > holdout_time) {
+
+                switch (res.statusCode) {
+                case 200:
+                    client.say(reply_to,
+                        'https://github.com/joyent/rfd/tree/master/rfd/' + rfd);
+                    break;
+                default:
+                    log.info({rfd: rfd, res: res}, 'No reply');
+                    break;
+                }
+                holdout[to][rfd] = {time: now, code: res.statusCode};
+            } else {
+                /* JSSTYLED */
+                log.info('Waiting an additional %d seconds before replying for %s in %s',
+                    (last_time - now + holdout_time) / 1000,
+                        rfd, to);
+            }
+        }).on('error', function (e) {
+        log.error(e);
+    });
+    return (0);
+};
+
 /* jsl:ignore */
 function loadConfig() {
     var configPath = path.join(__dirname, 'config.json');
@@ -238,3 +295,10 @@ function loadConfig() {
     return (theConfig);
 }
 /* jsl:end */
+
+// Extend String object so we can pad it for RFD lookups.
+String.prototype.lpad = function (size, character) {
+    var s = this;
+    while (s.length < (size || 2)) { s = character + s; }
+    return (s);
+};
