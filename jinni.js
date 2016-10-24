@@ -25,7 +25,7 @@ var holdout_time = 180000; // ms
 var bugview_re = new RegExp(/(https?:\/\/smartos.org\/bugview\/)?\b([A-Z]+-\d+)\b(.*)?/);
 /* JSSTYLED */
 var github_re = new RegExp(/\b([0-z\-_]+\b\/)?\b([0-z\-_]+)\b#\b([0-9]+)\b(.*)/);
-var rfd_re = new RegExp(/[Rr][Ff][Dd][\s-]+?(0*\d+)\b(.*)?/);
+var rfd_re = new RegExp(/[Rr][Ff][Dd][\s-]?(0*\d+)\b(.*)?/);
 var changelog_re = new RegExp('^' + config.nickname.toLowerCase()
     + ':? changelog');
 /* jsl:end */
@@ -59,6 +59,13 @@ client.addListener('message', function (from, to, message) {
         reply_to = from;
     }
 
+    if (matches = message.match(rfd_re)) {
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched RFD');
+        getRfd(from, to, reply_to, message, matches);
+        return (0);
+    }
+
     if (matches = message.match(bugview_re)) {
         log.info({from: from, to: to, reply_to: reply_to, message: message,
             matches: matches}, 'Matched bugview issue');
@@ -79,13 +86,6 @@ client.addListener('message', function (from, to, message) {
         var gh_user = matches[1] || 'joyent/';
         getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
             matches[3], matches[4]);
-        return (0);
-    }
-
-    if (matches = message.match(rfd_re)) {
-        log.info({from: from, to: to, reply_to: reply_to, message: message,
-            matches: matches}, 'Matched RFD');
-        getRfd(from, to, reply_to, message, matches);
         return (0);
     }
 
