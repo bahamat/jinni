@@ -28,6 +28,7 @@ var github_re = new RegExp(/\b([0-z\-_]+\b\/)?\b([0-z\-_]+)\b#\b([0-9]+)\b(.*)/)
 var rfd_re = new RegExp(/[Rr][Ff][Dd][\s-]?(0*\d+)\b(.*)?/);
 var changelog_re = new RegExp('^' + config.nickname.toLowerCase()
     + ':? changelog');
+var illumos_re = new RegExp(/illumos#(\d+)(.*)?/);
 /* jsl:end */
 
 log.info({server: config.server,
@@ -59,34 +60,38 @@ client.addListener('message', function (from, to, message) {
         reply_to = from;
     }
 
+    if (matches = message.match(illumos_re)) {
+        log.info({from: from, to: to, reply_to: reply_to, message: message,
+            matches: matches}, 'Matched illumos');
+        getIllumos(from, to, reply_to, message, matches);
+    }
+
     if (matches = message.match(rfd_re)) {
         log.info({from: from, to: to, reply_to: reply_to, message: message,
             matches: matches}, 'Matched RFD');
         getRfd(from, to, reply_to, message, matches);
-        return (0);
     }
 
     if (matches = message.match(bugview_re)) {
         log.info({from: from, to: to, reply_to: reply_to, message: message,
             matches: matches}, 'Matched bugview issue');
         checkBugView(from, to, reply_to, message, matches);
-        return (0);
     }
 
     if (matches = message.match(changelog_re)) {
         log.info({from: from, to: to, reply_to: reply_to, message: message,
             matches: matches}, 'Matched changelog');
         getChangelog(from, to, reply_to, message, matches);
-        return (0);
     }
 
     if (matches = message.match(github_re)) {
-        log.info({from: from, to: to, reply_to: reply_to, message: message,
-            matches: matches}, 'Matched github issue');
-        var gh_user = matches[1] || 'joyent/';
-        getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
-            matches[3], matches[4]);
-        return (0);
+        if (matches[3] !== 'illumos') {
+            log.info({from: from, to: to, reply_to: reply_to, message: message,
+                matches: matches}, 'Matched github issue');
+            var gh_user = matches[1] || 'joyent/';
+            getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
+                matches[3], matches[4]);
+        }
     }
 
     return (0);
@@ -195,7 +200,7 @@ var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
         'Need to look up github issue.');
 
     // Look for any additional matches in the remainder of the text.
-    if (addtl_match[2] !== null) {
+    if (addtl_match[2] !== null && addtl_match[2] !== 'illumos') {
         var addtl_gh_user = addtl_match[1] || 'joyent/';
         log.info({matches: addtl_match}, 'Looking up additional github issue');
         getGhIssue(from, to, addtl_text, addtl_gh_user, addtl_match[2],
@@ -272,6 +277,55 @@ var getRfd = function (from, to, reply_to, message, matches) {
                 log.info('Waiting an additional %d seconds before replying for %s in %s',
                     (last_time - now + holdout_time) / 1000,
                         rfd, to);
+            }
+        }).on('error', function (e) {
+        log.error(e);
+    });
+    return (0);
+};
+
+var getIllumos = function (from, to, reply_to, message, matches) {
+
+    var issue = matches[1];
+    var holdout_key = 'illumos_' + issue;
+    var i = holdout[to][holdout_key] || {};
+    var last_code  = i.code || 0;
+    var last_time  = i.time || 0;
+    var now = new Date();
+    var addtl_text = matches[2] || '';
+    var addtl_match = addtl_text.match(illumos_re) || [null, null, null];
+    var base_url = 'https://www.illumos.org/issues/';
+    var issue_url = base_url + issue;
+
+    log.info({from: from, to: to, message: message,
+        last_time: last_time, last_code: last_code,
+        matches: matches}, 'Need to look up illumos issue');
+
+    // Look for any additional matches in the remainder of the text.
+    if (addtl_match[1] !== null) {
+        log.info({matches: addtl_match}, 'Looking up additional matches');
+        getIllumos(from, to, reply_to, addtl_text, addtl_match);
+    }
+
+    log.info('Check URL ' + issue_url);
+    https.get(issue_url, function (res) {
+            log.info({issue: issue, statusCode: res.statusCode});
+            if (res.statusCode !== last_code ||
+                    now - last_time > holdout_time) {
+                switch (res.statusCode) {
+                case 200:
+                    client.say(reply_to, issue_url);
+                    break;
+                default:
+                    log.info({issue: issue, res: res}, 'No reply');
+                    break;
+                }
+                holdout[to][holdout_key] = {time: now, code: res.statusCode};
+            } else {
+                /* JSSTYLED */
+                log.info('Waiting an additional %d seconds before replying for %s in %s',
+                    (last_time - now + holdout_time) / 1000,
+                        issue, to);
             }
         }).on('error', function (e) {
         log.error(e);
