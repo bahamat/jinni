@@ -94,12 +94,16 @@ client.addListener('message', function (from, to, message) {
         }
     }
 
+    log.debug({from: from, to: to, message: message}, "Ignored message");
+
     return (0);
 });
 /* jsl:end */
 
 client.addListener('registered', function (message) {
     log.info({message: message}, 'Connected.');
+    setNick(config.nickname, config.nickserv_password);
+    joinChannels(config.channels);
 });
 
 client.addListener('motd', function (motd) {
@@ -109,6 +113,30 @@ client.addListener('motd', function (motd) {
 client.addListener('names', function (channel) {
     log.info({channel: channel}, 'Joined channel');
 });
+
+var setNick = function (nick, pass) {
+    if (client.nick != nick) {
+        log.warn({nick: client.nick}, "Attempting nick recovery");
+        client.say("nickserv", "ghost " + nick + " " +
+            pass);
+        client.send("NICK", nick);
+        log.info({nick: client.nick}, "Nick recovery complete");
+    }
+    client.say("nickserv", "identify " + pass);
+    log.info({nick: client.nick}, "nick is now " + client.nick);
+    return 0;
+}
+
+var joinChannels = function(c) {
+    log.info("joining channels");
+    c.forEach(function(chan) {
+        log.info("join channel " + chan);
+        client.join(chan, function(j) {
+            log.info({channel: j}, "Joined channel " + j);
+        });
+     });
+    return 0;
+}
 
 var checkBugView = function (from, to, reply_to, message, matches) {
 

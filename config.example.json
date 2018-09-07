@@ -1,6 +1,7 @@
 {
   "server": "irc.freenode.net",
   "nickname": "jinni",
+  "nickserv_password": "secret",
   "username": "jinni",
   "realname": "https://github.com/bahamat/jinni",
   "channels": [
