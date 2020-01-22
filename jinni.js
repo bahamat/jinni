@@ -58,6 +58,11 @@ client.addListener('message', function (from, to, message) {
     // If sent as a private message, respond with a private message.
     if (to == config.nickname) {
         reply_to = from;
+        // Log messages from nickserv
+        if (from === 'NickServ') {
+            log.info({from: from, to: to, message: message},
+            'Message from NickServ');
+        }
     }
 
     if (matches = message.match(illumos_re)) {
@@ -94,7 +99,7 @@ client.addListener('message', function (from, to, message) {
         }
     }
 
-    log.debug({from: from, to: to, message: message}, "Ignored message");
+    log.debug({from: from, to: to, message: message}, 'Ignored message');
 
     return (0);
 });
@@ -102,7 +107,7 @@ client.addListener('message', function (from, to, message) {
 
 client.addListener('registered', function (message) {
     log.info({message: message}, 'Connected.');
-    setNick(config.nickname, config.nickserv_password);
+    verifyNick(config.nickname, config.nickserv_password);
     joinChannels(config.channels);
 });
 
@@ -114,29 +119,31 @@ client.addListener('names', function (channel) {
     log.info({channel: channel}, 'Joined channel');
 });
 
-var setNick = function (nick, pass) {
+var verifyNick = function (nick, pass) {
     if (client.nick != nick) {
-        log.warn({nick: client.nick}, "Attempting nick recovery");
-        client.say("nickserv", "ghost " + nick + " " +
-            pass);
-        client.send("NICK", nick);
-        log.info({nick: client.nick}, "Nick recovery complete");
+        log.error({nick: client.nick, wanted: nick}, 'Got a ghost.');
+        log.warn({nick: client.nick}, 'Attempting nick recovery');
+        client.say('nickserv', 'ghost ' + nick + ' ' + pass);
+        log.info({nick: client.nick}, 'Ghost recovery sent, will exit in 10s');
+        setTimeout(process.exit(1), 1000);
+        return ({err: 'Nick is ' + client.nick + ' not ' + nick});
+    } else {
+        client.say('nickserv', 'identify ' + pass);
+        log.info({nick: client.nick}, 'nick is now ' + client.nick);
+        return (0);
     }
-    client.say("nickserv", "identify " + pass);
-    log.info({nick: client.nick}, "nick is now " + client.nick);
-    return 0;
-}
+};
 
-var joinChannels = function(c) {
-    log.info("joining channels");
-    c.forEach(function(chan) {
-        log.info("join channel " + chan);
-        client.join(chan, function(j) {
-            log.info({channel: j}, "Joined channel " + j);
+var joinChannels = function (c) {
+    log.info('joining channels');
+    c.forEach(function (chan) {
+        log.info('join channel ' + chan);
+        client.join(chan, function (j) {
+            log.info({channel: j}, 'Joined channel ' + j);
         });
      });
-    return 0;
-}
+    return (0);
+};
 
 var checkBugView = function (from, to, reply_to, message, matches) {
 
