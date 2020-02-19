@@ -125,7 +125,7 @@ var verifyNick = function (nick, pass) {
         log.warn({nick: client.nick}, 'Attempting nick recovery');
         client.say('nickserv', 'ghost ' + nick + ' ' + pass);
         log.info({nick: client.nick}, 'Ghost recovery sent, will exit in 10s');
-        setTimeout(process.exit(1), 1000);
+        setTimeout(process.exit(1), 10000);
         return ({err: 'Nick is ' + client.nick + ' not ' + nick});
     } else {
         client.say('nickserv', 'identify ' + pass);
