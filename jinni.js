@@ -238,7 +238,7 @@ var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
     if (addtl_match[2] !== null && addtl_match[2] !== 'illumos') {
         var addtl_gh_user = addtl_match[1] || 'joyent/';
         log.info({matches: addtl_match}, 'Looking up additional github issue');
-        getGhIssue(from, to, addtl_text, addtl_gh_user, addtl_match[2],
+        getGhIssue(from, to, reply_to, addtl_text, addtl_gh_user, addtl_match[2],
             addtl_match[3], addtl_match[4]);
     }
 
