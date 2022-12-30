@@ -93,7 +93,7 @@ client.addListener('message', function (from, to, message) {
         if (matches[3] !== 'illumos') {
             log.info({from: from, to: to, reply_to: reply_to, message: message,
                 matches: matches}, 'Matched github issue');
-            var gh_user = matches[1] || 'joyent/';
+            var gh_user = matches[1] || 'TritonDataCenter/';
             getGhIssue(from, to, reply_to, message, gh_user,  matches[2],
                 matches[3], matches[4]);
         }
@@ -208,7 +208,7 @@ var getChangelog = function (from, to, reply_to, message, matches) {
         matches: matches});
 
     /* JSSTYLED */
-    client.say(reply_to, 'http://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html');
+    client.say(reply_to, 'http://us-east.manta.mnx.io/Joyent_Dev/public/SmartOS/smartos.html');
 };
 
 var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
@@ -236,7 +236,7 @@ var getGhIssue = function (from, to, reply_to, message, gh_user, gh_repo,
 
     // Look for any additional matches in the remainder of the text.
     if (addtl_match[2] !== null && addtl_match[2] !== 'illumos') {
-        var addtl_gh_user = addtl_match[1] || 'joyent/';
+        var addtl_gh_user = addtl_match[1] || 'TritonDataCenter/';
         log.info({matches: addtl_match}, 'Looking up additional github issue');
         getGhIssue(from, to, reply_to, addtl_text, addtl_gh_user, addtl_match[2],
             addtl_match[3], addtl_match[4]);
@@ -290,8 +290,8 @@ var getRfd = function (from, to, reply_to, message, matches) {
         getRfd(from, to, reply_to, addtl_text, addtl_match);
     }
 
-    log.info('Check URL https://github.org/joyent/rfd/tree/master/rfd/' + rfd);
-    https.get('https://github.com/joyent/rfd/tree/master/rfd/' + rfd,
+    log.info('Check URL https://github.org/TritonDataCenter/rfd/tree/master/rfd/' + rfd);
+    https.get('https://github.com/TritonDataCenter/rfd/tree/master/rfd/' + rfd,
         function (res) {
             log.info({rfd: rfd, statusCode: res.statusCode});
             if (res.statusCode !== last_code ||
@@ -300,7 +300,7 @@ var getRfd = function (from, to, reply_to, message, matches) {
                 switch (res.statusCode) {
                 case 200:
                     client.say(reply_to,
-                        'https://github.com/joyent/rfd/tree/master/rfd/' + rfd);
+                        'https://github.com/TritonDataCenter/rfd/tree/master/rfd/' + rfd);
                     break;
                 default:
                     log.info({rfd: rfd, res: res}, 'No reply');

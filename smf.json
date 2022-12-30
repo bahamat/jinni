@@ -1,6 +1,6 @@
 {
   "ident": "jinni",
-  "label": "IRC Bot for #smartos and #joyent",
+  "label": "IRC Bot for Triton and SmartOS",
   "user": "nobody",
   "group": "nobody",
   "timeout": 10,
