@@ -107,7 +107,7 @@ client.addListener('message', function (from, to, message) {
 
 client.addListener('registered', function (message) {
     log.info({message: message}, 'Connected.');
-    verifyNick(config.nickname, config.nickserv_password);
+    verifyNick();
     joinChannels(config.channels);
 });
 
@@ -119,16 +119,25 @@ client.addListener('names', function (channel) {
     log.info({channel: channel}, 'Joined channel');
 });
 
-var verifyNick = function (nick, pass) {
-    if (client.nick != nick) {
-        log.error({nick: client.nick, wanted: nick}, 'Got a ghost.');
-        log.warn({nick: client.nick}, 'Attempting nick recovery');
-        client.say('nickserv', 'ghost ' + nick + ' ' + pass);
-        log.info({nick: client.nick}, 'Ghost recovery sent, will exit in 10s');
-        setTimeout(function () {process.exit(1)}, 10000);
-        return ({err: 'Nick is ' + client.nick + ' not ' + nick});
+var verifyNick = function () {
+    if (client.nick != config.nickname) {
+        log.warn({nick: client.nick, wanted: config.nickname}, 'Got a ghost.');
+        log.info({nick: client.nick}, 'Attempting nick recovery');
+        client.say('nickserv', [
+            'ghost',
+            config.nickname,
+            config.nickserv_password
+        ].join(' '));
+        log.info({nick: client.nick}, 'Ghost recovery sent');
+        setTimeout(function () {
+            log.info('Changing nick to ' + config.nickname);
+            client.send('NICK', config.nickname);
+            verifyNick();
+        }, 1000);
     } else {
-        client.say('nickserv', 'identify ' + pass);
+        log.info({nick: client.nick}, 'I got the nick I wanted.');
+        log.info('Authenticating as ' + client.nick);
+        client.say('nickserv', 'identify ' + config.nickserv_password);
         log.info({nick: client.nick}, 'nick is now ' + client.nick);
         return (0);
     }
